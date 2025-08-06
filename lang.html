@@ -1,0 +1,2438 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מוקד עירוני - לוח בקרה</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            direction: rtl;
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border-left: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 20px;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+
+        /* Theme Selector */
+        .theme-selector {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .theme-btn {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 8px 0;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: #555;
+        }
+
+        .theme-btn:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translateX(-3px);
+        }
+
+        .theme-btn.active {
+            border-color: var(--primary-color);
+            background: rgba(255, 255, 255, 1);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .theme-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+
+        /* CSS Variables for Themes */
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --danger-color: #f44336;
+            --info-color: #2196f3;
+        }
+
+        body.nature-theme {
+            --primary-color: #2E8B57;
+            --secondary-color: #32CD32;
+            --accent-color: #FFD700;
+            --success-color: #228B22;
+            --warning-color: #FFA500;
+            --danger-color: #DC143C;
+            --info-color: #1E90FF;
+        }
+
+        /* Update existing styles to use variables */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            min-height: 100vh;
+            direction: rtl;
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        .nav-item:hover {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            transform: translateX(-5px);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+
+        /* Stats Cards */
+        .stat-card {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* File Upload */
+        .file-upload {
+            border: 2px dashed var(--primary-color);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-upload:hover {
+            border-color: var(--secondary-color);
+            background: rgba(var(--primary-color-rgb, 102, 126, 234), 0.05);
+        }
+
+        .file-upload.dragover {
+            border-color: var(--secondary-color);
+            background: rgba(var(--primary-color-rgb, 102, 126, 234), 0.1);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+
+        /* Table Headers */
+        .data-table th {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            font-weight: 600;
+        }
+
+        .data-table tr:hover {
+            background: rgba(var(--primary-color-rgb, 102, 126, 234), 0.05);
+        }
+
+        /* Emergency Stats */
+        .emergency-stat-card {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 15px rgba(var(--primary-color-rgb, 102, 126, 234), 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .emergency-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(var(--primary-color-rgb, 102, 126, 234), 0.4);
+        }
+
+        /* Emergency Cards */
+        .emergency-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .emergency-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary-color);
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        .card-participants {
+            background: rgba(var(--primary-color-rgb, 102, 126, 234), 0.05);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+            border-right: 3px solid var(--primary-color);
+        }
+
+        .participants-list::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+
+        .date-range {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            text-align: center;
+            margin: 8px 0;
+        }
+
+        .participant-count {
+            background: rgba(var(--warning-color-rgb, 255, 152, 0), 0.1);
+            color: var(--warning-color);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .status-completed {
+            background: linear-gradient(45deg, var(--success-color), #66bb6a);
+            color: white;
+        }
+
+        /* Nature Theme Specific Colors */
+        body.nature-theme {
+            --primary-color-rgb: 46, 139, 87;
+            --warning-color-rgb: 255, 165, 0;
+        }
+
+        body.nature-theme .spinner {
+            border-top: 3px solid var(--primary-color);
+        }
+
+        .sidebar-header h2 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-header p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .nav-item {
+            padding: 12px 16px;
+            margin: 8px 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .nav-item:hover {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            transform: translateX(-5px);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .nav-item i {
+            font-size: 1.2rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .content-section {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards */
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .card-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-header h3 {
+            color: #333;
+            font-size: 1.4rem;
+            margin-bottom: 8px;
+        }
+
+        .card-header p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: skewY(-11deg);
+            transform-origin: top right;
+        }
+
+        .stat-card h4 {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .stat-card .number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        /* File Upload */
+        .file-upload {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-upload:hover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .file-upload.dragover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 15px;
+            text-align: right;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .data-table th {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+        }
+
+        .data-table tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        /* Rescue Stats Grid */
+        .rescue-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .rescue-stat-card {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 15px rgba(var(--primary-color-rgb, 102, 126, 234), 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rescue-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(var(--primary-color-rgb, 102, 126, 234), 0.4);
+        }
+
+        .rescue-stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.1);
+            transform: skew(-15deg);
+            transform-origin: top left;
+            z-index: 0;
+        }
+
+        /* Inquiries Stats Grid */
+        .inquiries-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .inquiries-stat-card {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 15px rgba(var(--primary-color-rgb, 102, 126, 234), 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .inquiries-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(var(--primary-color-rgb, 102, 126, 234), 0.4);
+        }
+
+        .inquiries-stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.1);
+            transform: skew(-15deg);
+            transform-origin: top left;
+            z-index: 0;
+        }
+
+        /* Rescue Cards */
+        .rescue-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .rescue-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rescue-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary-color);
+        }
+
+        .rescue-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 30px 0;
+        }
+
+        .pagination button {
+            padding: 10px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            color: #333;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .pagination button:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #f5f5f5;
+        }
+
+        .pagination button.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .pagination .page-info {
+            margin: 0 15px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Inquiries Cards */
+        .inquiries-cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .inquiry-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .inquiry-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary-color);
+        }
+
+        .inquiry-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .inquiry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .inquiry-id {
+            font-family: monospace;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .inquiry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .inquiry-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .inquiry-field label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .inquiry-field value {
+            font-size: 0.95rem;
+            color: #333;
+        }
+
+        .inquiry-description {
+            background: #f8f9ff;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+            border-right: 3px solid var(--primary-color);
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .inquiry-description::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        /* Filters Container */
+        .filters-container {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .filters-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: white;
+            transition: all 0.3s ease;
+            direction: rtl;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb, 102, 126, 234), 0.1);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            align-self: end;
+        }
+
+        .filter-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .apply-btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+
+        .apply-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(var(--primary-color-rgb, 102, 126, 234), 0.4);
+        }
+
+        .clear-btn {
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .clear-btn:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        /* Enhanced Inquiry Cards */
+        .inquiry-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .inquiry-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary-color);
+        }
+
+        .inquiry-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .inquiry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f8f9fa;
+        }
+
+        .inquiry-id {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            background: rgba(var(--primary-color-rgb, 102, 126, 234), 0.1);
+            padding: 8px 16px;
+            border-radius: 25px;
+            border: 2px solid rgba(var(--primary-color-rgb, 102, 126, 234), 0.3);
+        }
+
+        .inquiry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .inquiry-field {
+            background: #f8f9ff;
+            padding: 14px;
+            border-radius: 10px;
+            border-right: 4px solid var(--primary-color);
+            transition: all 0.3s ease;
+        }
+
+        .inquiry-field:hover {
+            background: #f0f2ff;
+            transform: translateX(-2px);
+        }
+
+        .inquiry-field label {
+            font-size: 0.8rem;
+            color: var(--primary-color);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .inquiry-field value {
+            font-size: 0.95rem;
+            color: #333;
+            font-weight: 500;
+            line-height: 1.4;
+            display: block;
+        }
+
+        .inquiry-description {
+            background: linear-gradient(135deg, #f8f9ff, #fff);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            border-right: 4px solid var(--accent-color);
+            max-height: 120px;
+            overflow-y: auto;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .inquiry-description strong {
+            color: var(--primary-color);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .inquiry-description::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .inquiry-description::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .inquiry-description::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 3px;
+        }
+
+        /* Enhanced Status Badges */
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 2px solid transparent;
+        }
+
+        .status-open {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            color: white;
+            border-color: rgba(255, 107, 107, 0.3);
+            box-shadow: 0 3px 10px rgba(255, 107, 107, 0.3);
+        }
+
+        .status-closed {
+            background: linear-gradient(45deg, #51cf66, #69db7c);
+            color: white;
+            border-color: rgba(81, 207, 102, 0.3);
+            box-shadow: 0 3px 10px rgba(81, 207, 102, 0.3);
+        }
+
+        /* Enhanced Rescue Cards */
+        .rescue-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .rescue-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary-color);
+        }
+
+        .rescue-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .rescue-card .card-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .rescue-card .card-icon {
+            font-size: 1.8rem;
+            color: var(--primary-color);
+        }
+
+        /* No Results Message */
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+            background: #f8f9fa;
+            border-radius: 16px;
+            margin: 20px 0;
+        }
+
+        .no-results .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .no-results h3 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .no-results p {
+            font-size: 0.9rem;
+            color: #777;
+        }
+        .emergency-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .emergency-stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .emergency-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .emergency-stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.1);
+            transform: skew(-15deg);
+            transform-origin: top left;
+            z-index: 0;
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            z-index: 1;
+            position: relative;
+        }
+
+        .stat-content {
+            flex: 1;
+            z-index: 1;
+            position: relative;
+        }
+
+        .stat-content h4 {
+            margin: 0 0 8px 0;
+            font-size: 0.9rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        /* Emergency Cards Styling */
+        .emergency-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .emergency-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .emergency-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border-color: #667eea;
+        }
+
+        .emergency-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+
+        .card-detail {
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .card-label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-value {
+            font-size: 1rem;
+            color: #333;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .card-participants {
+            background: #f8f9ff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+            border-right: 3px solid #667eea;
+        }
+
+        .participants-list {
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .participants-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .participants-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 2px;
+        }
+
+        .participants-list::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 2px;
+        }
+
+        .status-badge-large {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .status-completed {
+            background: linear-gradient(45deg, #4caf50, #66bb6a);
+            color: white;
+        }
+
+        .date-range {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            text-align: center;
+            margin: 8px 0;
+        }
+
+        .participant-count {
+            background: #fff3e0;
+            color: #f57c00;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        /* Charts */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-open {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-closed {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status-active {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+            
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>🏛️ מוקד עירוני</h2>
+                <p>מודיעין-מכבים-רעות</p>
+                
+                <!-- Theme Selector -->
+                <div class="theme-selector">
+                    <button class="theme-btn active" onclick="setTheme('blue')" data-theme="blue">
+                        <div class="theme-color" style="background: linear-gradient(45deg, #667eea, #764ba2);"></div>
+                        כחול קלאסי
+                    </button>
+                    <button class="theme-btn" onclick="setTheme('nature')" data-theme="nature">
+                        <div class="theme-color" style="background: linear-gradient(45deg, #2E8B57, #32CD32);"></div>
+                        טבע ירוק
+                    </button>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item active" onclick="showSection('upload')">
+                    📁 העלאת קובץ
+                </div>
+                <div class="nav-item" onclick="showSection('overview')">
+                    📊 סקירה כללית
+                </div>
+                <div class="nav-item" onclick="showSection('inquiries')">
+                    📞 פניות מוקד
+                </div>
+                <div class="nav-item" onclick="showSection('security')">
+                    🛡️ ביטחון שכונתי
+                </div>
+                <div class="nav-item" onclick="showSection('police')">
+                    🚔 נתוני משטרה
+                </div>
+                <div class="nav-item" onclick="showSection('emergency')">
+                    🚑 כיתת כוננות
+                </div>
+                <div class="nav-item" onclick="showSection('rescue')">
+                    🔥 חילוץ והצלה
+                </div>
+                <div class="nav-item" onclick="showSection('cctv')">
+                    📹 מערכת מצלמות
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>טוען נתונים...</p>
+            </div>
+
+            <!-- File Upload Section -->
+            <div class="content-section active" id="upload">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>העלאת קובץ נתונים</h3>
+                        <p>העלה את קובץ האקסל עם נתוני הרשות המקומית</p>
+                    </div>
+                    
+                    <div class="file-upload" id="fileUpload">
+                        <div class="upload-icon">📁</div>
+                        <h4>גרור קובץ לכאן או לחץ לבחירה</h4>
+                        <p>קבצי אקסל בלבד (.xlsx, .xls)</p>
+                        <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileUpload(event)">
+                    </div>
+                    
+                    <div id="uploadStatus"></div>
+                </div>
+            </div>
+
+            <!-- Overview Section -->
+            <div class="content-section" id="overview">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>סך פניות במערכת</h4>
+                        <div class="number" id="totalInquiries">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>אירועי משטרה</h4>
+                        <div class="number" id="policeIncidents">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>כוח אדם חילוץ</h4>
+                        <div class="number" id="rescuePersonnel">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>מצלמות אבטחה</h4>
+                        <div class="number" id="totalCameras">-</div>
+                    </div>
+                </div>
+
+                <div class="chart-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>פניות לפי חודש</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>פילוח לפי מחלקות</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="departmentChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inquiries Section -->
+            <div class="content-section" id="inquiries">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>פניות מוקד עירוני</h3>
+                        <p>פירוט מלא של כל הפניות במערכת</p>
+                    </div>
+                    
+                    <!-- Inquiries Stats Grid -->
+                    <div class="inquiries-stats-grid">
+                        <div class="inquiries-stat-card">
+                            <div class="stat-icon">📞</div>
+                            <div class="stat-content">
+                                <h4>סך פניות</h4>
+                                <div class="stat-number" id="totalInquiriesDetail">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="inquiries-stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-content">
+                                <h4>פניות סגורות</h4>
+                                <div class="stat-number" id="closedInquiries">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="inquiries-stat-card">
+                            <div class="stat-icon">🔄</div>
+                            <div class="stat-content">
+                                <h4>פניות פתוחות</h4>
+                                <div class="stat-number" id="openInquiries">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="inquiries-stat-card">
+                            <div class="stat-icon">🏢</div>
+                            <div class="stat-content">
+                                <h4>מחלקות</h4>
+                                <div class="stat-number" id="departmentCount">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="inquiries-stat-card">
+                            <div class="stat-icon">📱</div>
+                            <div class="stat-content">
+                                <h4>SMS נשלחו</h4>
+                                <div class="stat-number" id="smsCount">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="inquiries-stat-card">
+                            <div class="stat-icon">⏱️</div>
+                            <div class="stat-content">
+                                <h4>זמן תגובה ממוצע</h4>
+                                <div class="stat-number" id="avgResponseTime" style="font-size: 1rem;">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Filters -->
+                    <div class="filters-container">
+                        <div class="filters-row">
+                            <div class="filter-group">
+                                <label>🏢 מחלקה</label>
+                                <select id="departmentFilter">
+                                    <option value="">כל המחלקות</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>📊 סטטוס</label>
+                                <select id="statusFilter">
+                                    <option value="">כל הסטטוסים</option>
+                                    <option value="פתוח">פתוח</option>
+                                    <option value="סגור">סגור</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>📅 מתאריך</label>
+                                <input type="date" id="dateFromFilter">
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>📅 עד תאריך</label>
+                                <input type="date" id="dateToFilter">
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>🔍 חיפוש</label>
+                                <input type="text" id="searchFilter" placeholder="חיפוש בתיאור...">
+                            </div>
+                            
+                            <div class="filter-actions">
+                                <button class="filter-btn apply-btn" onclick="applyInquiriesFilters()">
+                                    🔍 סינון
+                                </button>
+                                <button class="filter-btn clear-btn" onclick="clearInquiriesFilters()">
+                                    🗑️ נקה
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="inquiriesContent"></div>
+                </div>
+            </div>
+
+            <!-- Security Section -->
+            <div class="content-section" id="security">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>ביטחון שכונתי</h3>
+                        <p>פניות ביטחון לפי שכונות</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="securityChart"></canvas>
+                    </div>
+                    <div id="securityContent"></div>
+                </div>
+            </div>
+
+            <!-- Police Section -->
+            <div class="content-section" id="police">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>נתוני משטרה ופשיעה</h3>
+                        <p>סטטיסטיקות עבירות ואירועים</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="crimeChart"></canvas>
+                    </div>
+                    <div id="policeContent"></div>
+                </div>
+            </div>
+
+            <!-- Emergency Section -->
+            <div class="content-section" id="emergency">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>כיתת כוננות</h3>
+                        <p>פעילויות ואימונים</p>
+                    </div>
+                    
+                    <!-- Emergency Stats Grid -->
+                    <div class="emergency-stats-grid">
+                        <div class="emergency-stat-card">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-content">
+                                <h4>סך פעילויות</h4>
+                                <div class="stat-number" id="totalActivities">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="emergency-stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-content">
+                                <h4>פעילויות שבוצעו</h4>
+                                <div class="stat-number" id="completedActivities">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="emergency-stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-content">
+                                <h4>סך משתתפים</h4>
+                                <div class="stat-number" id="totalParticipants">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="emergency-stat-card">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-content">
+                                <h4>ממוצע משתתפים</h4>
+                                <div class="stat-number" id="avgParticipants">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="emergency-stat-card">
+                            <div class="stat-icon">🎯</div>
+                            <div class="stat-content">
+                                <h4>אימונים</h4>
+                                <div class="stat-number" id="trainingCount">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="emergency-stat-card">
+                            <div class="stat-icon">📅</div>
+                            <div class="stat-content">
+                                <h4>טווח תאריכים</h4>
+                                <div class="stat-number" id="dateRange" style="font-size: 0.9rem;">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="emergencyContent"></div>
+                </div>
+            </div>
+
+            <!-- Rescue Section -->
+            <div class="content-section" id="rescue">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>חילוץ והצלה</h3>
+                        <p>כוח האדם וההכשרות</p>
+                    </div>
+                    
+                    <!-- Rescue Stats Grid -->
+                    <div class="rescue-stats-grid">
+                        <div class="rescue-stat-card">
+                            <div class="stat-icon">👨‍🚒</div>
+                            <div class="stat-content">
+                                <h4>סך כוח אדם</h4>
+                                <div class="stat-number" id="totalRescuePersonnel">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="rescue-stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-content">
+                                <h4>פעילים</h4>
+                                <div class="stat-number" id="activePersonnel">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="rescue-stat-card">
+                            <div class="stat-icon">👨‍👩‍👧‍👦</div>
+                            <div class="stat-content">
+                                <h4>גברים / נשים</h4>
+                                <div class="stat-number" id="genderRatio" style="font-size: 1.2rem;">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="rescue-stat-card">
+                            <div class="stat-icon">🚗</div>
+                            <div class="stat-content">
+                                <h4>בעלי רכב</h4>
+                                <div class="stat-number" id="vehicleOwners">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="rescue-stat-card">
+                            <div class="stat-icon">🎓</div>
+                            <div class="stat-content">
+                                <h4>עם הכשרות</h4>
+                                <div class="stat-number" id="trainedPersonnel">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="rescue-stat-card">
+                            <div class="stat-icon">🏘️</div>
+                            <div class="stat-content">
+                                <h4>שכונות</h4>
+                                <div class="stat-number" id="neighborhoodCount">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Rescue Filters -->
+                    <div class="filters-container">
+                        <div class="filters-row">
+                            <div class="filter-group">
+                                <label>🏘️ שכונה</label>
+                                <select id="rescueNeighborhoodFilter">
+                                    <option value="">כל השכונות</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>⚧ מגדר</label>
+                                <select id="rescueGenderFilter">
+                                    <option value="">כל המגדרים</option>
+                                    <option value="זכר">זכר</option>
+                                    <option value="נקבה">נקבה</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>📊 סטטוס</label>
+                                <select id="rescueStatusFilter">
+                                    <option value="">כל הסטטוסים</option>
+                                    <option value="פעיל">פעיל</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>🚗 רכב</label>
+                                <select id="rescueVehicleFilter">
+                                    <option value="">הכל</option>
+                                    <option value="כן">יש רכב</option>
+                                    <option value="לא">אין רכב</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>🎓 הכשרות</label>
+                                <select id="rescueTrainingFilter">
+                                    <option value="">הכל</option>
+                                    <option value="1">רמה 1</option>
+                                    <option value="2">רמה 2</option>
+                                    <option value="3">רמה 3</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-actions">
+                                <button class="filter-btn apply-btn" onclick="applyRescueFilters()">
+                                    🔍 סינון
+                                </button>
+                                <button class="filter-btn clear-btn" onclick="clearRescueFilters()">
+                                    🗑️ נקה
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="rescueChart"></canvas>
+                    </div>
+                    <div id="rescueContent"></div>
+                </div>
+            </div>
+
+            <!-- CCTV Section -->
+            <div class="content-section" id="cctv">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>מערכת מצלמות אבטחה</h3>
+                        <p>פילוח מצלמות לפי שכונות</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="cctvChart"></canvas>
+                    </div>
+                    <div id="cctvContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dashboardData = {};
+        let charts = {};
+
+        // Theme Management
+        function setTheme(themeName) {
+            // Remove existing theme classes
+            document.body.classList.remove('nature-theme');
+            
+            // Remove active class from all theme buttons
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Add active class to selected theme
+            document.querySelector(`[data-theme="${themeName}"]`).classList.add('active');
+            
+            // Apply theme
+            if (themeName === 'nature') {
+                document.body.classList.add('nature-theme');
+            }
+            
+            // Update charts with new theme colors
+            updateChartsTheme();
+            
+            // Save theme preference
+            localStorage.setItem('selectedTheme', themeName);
+        }
+
+        function updateChartsTheme() {
+            const isNatureTheme = document.body.classList.contains('nature-theme');
+            const colors = isNatureTheme ? {
+                primary: '#2E8B57',
+                secondary: '#32CD32',
+                accent: '#FFD700',
+                success: '#228B22',
+                warning: '#FFA500',
+                danger: '#DC143C',
+                info: '#1E90FF',
+                chartColors: [
+                    '#2E8B57', '#32CD32', '#FFD700', '#DC143C', 
+                    '#1E90FF', '#FFA500', '#228B22', '#9ACD32'
+                ]
+            } : {
+                primary: '#667eea',
+                secondary: '#764ba2',
+                accent: '#f093fb',
+                success: '#4caf50',
+                warning: '#ff9800',
+                danger: '#f44336',
+                info: '#2196f3',
+                chartColors: [
+                    '#667eea', '#764ba2', '#f093fb', '#f5576c', 
+                    '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'
+                ]
+            };
+            
+            // Recreate charts with new colors
+            Object.keys(charts).forEach(chartId => {
+                if (charts[chartId]) {
+                    const chartData = charts[chartId].data;
+                    
+                    // Update dataset colors
+                    chartData.datasets.forEach((dataset, index) => {
+                        if (chartData.datasets.length === 1) {
+                            // Single dataset - use primary colors or array for multiple data points
+                            if (Array.isArray(dataset.data) && dataset.data.length > 1) {
+                                dataset.backgroundColor = colors.chartColors;
+                                dataset.borderColor = colors.chartColors;
+                            } else {
+                                dataset.backgroundColor = isNatureTheme ? 
+                                    'rgba(46, 139, 87, 0.8)' : 'rgba(102, 126, 234, 0.8)';
+                                dataset.borderColor = colors.primary;
+                            }
+                        } else {
+                            dataset.backgroundColor = colors.chartColors[index % colors.chartColors.length];
+                            dataset.borderColor = colors.chartColors[index % colors.chartColors.length];
+                        }
+                    });
+                    
+                    charts[chartId].update();
+                }
+            });
+        }
+
+        // Load saved theme on page load
+        function loadSavedTheme() {
+            const savedTheme = localStorage.getItem('selectedTheme') || 'blue';
+            setTheme(savedTheme);
+        }
+
+        // Navigation
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Remove active class from nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // File Upload Handling
+        document.getElementById('fileUpload').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        // Drag and Drop
+        const fileUpload = document.getElementById('fileUpload');
+        
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.classList.add('dragover');
+        });
+        
+        fileUpload.addEventListener('dragleave', () => {
+            fileUpload.classList.remove('dragover');
+        });
+        
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload({ target: { files } });
+            }
+        });
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoading(true);
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                    processWorkbook(workbook);
+                    document.getElementById('uploadStatus').innerHTML = 
+                        '<div style="color: green; text-align: center; margin-top: 20px;">✅ הקובץ נטען בהצלחה!</div>';
+                } catch (error) {
+                    document.getElementById('uploadStatus').innerHTML = 
+                        '<div style="color: red; text-align: center; margin-top: 20px;">❌ שגיאה בטעינת הקובץ</div>';
+                    console.error('Error processing file:', error);
+                }
+                showLoading(false);
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        function processWorkbook(workbook) {
+            dashboardData = {};
+            
+            // Process each sheet
+            workbook.SheetNames.forEach(sheetName => {
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+                
+                if (jsonData.length > 0) {
+                    const headers = jsonData[0];
+                    const data = jsonData.slice(1);
+                    
+                    dashboardData[sheetName] = {
+                        headers: headers,
+                        data: data,
+                        rowCount: data.length
+                    };
+                }
+            });
+            
+            // Update dashboard
+            updateOverview();
+            updateAllSections();
+        }
+
+        function updateOverview() {
+            // Update statistics
+            const fucos = dashboardData.fucos || { data: [] };
+            const policeIncidents = dashboardData['police-insedents'] || { data: [] };
+            const rescue = dashboardData.hilutz || { data: [] };
+            
+            document.getElementById('totalInquiries').textContent = fucos.data.length.toLocaleString('he-IL');
+            document.getElementById('policeIncidents').textContent = policeIncidents.data.length.toLocaleString('he-IL');
+            document.getElementById('rescuePersonnel').textContent = rescue.data.length.toLocaleString('he-IL');
+            
+            // Calculate total cameras
+            const cctv = dashboardData.cctv || { data: [] };
+            const totalCams = cctv.data.reduce((sum, row) => sum + parseInt(row[1] || 0), 0);
+            document.getElementById('totalCameras').textContent = totalCams.toLocaleString('he-IL');
+
+            // Create charts
+            createOverviewCharts();
+        }
+
+        function createOverviewCharts() {
+            // Monthly inquiries chart
+            if (dashboardData.fucos) {
+                const monthlyData = processMonthlyData();
+                createChart('monthlyChart', 'line', {
+                    labels: monthlyData.labels,
+                    datasets: [{
+                        label: 'פניות חודשיות',
+                        data: monthlyData.data,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4
+                    }]
+                });
+            }
+
+            // Department pie chart
+            if (dashboardData.fucos) {
+                const deptData = processDepartmentData();
+                createChart('departmentChart', 'doughnut', {
+                    labels: deptData.labels,
+                    datasets: [{
+                        data: deptData.data,
+                        backgroundColor: [
+                            '#667eea', '#764ba2', '#f093fb', '#f5576c', 
+                            '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'
+                        ]
+                    }]
+                });
+            }
+        }
+
+        function processMonthlyData() {
+            const fucos = dashboardData.fucos;
+            const monthCounts = {};
+            
+            fucos.data.forEach(row => {
+                const dateStr = row[1]; // תאריך פתיחה
+                if (dateStr) {
+                    const month = dateStr.substring(3, 10); // MM/YYYY
+                    monthCounts[month] = (monthCounts[month] || 0) + 1;
+                }
+            });
+            
+            return {
+                labels: Object.keys(monthCounts),
+                data: Object.values(monthCounts)
+            };
+        }
+
+        function processDepartmentData() {
+            const fucos = dashboardData.fucos;
+            const deptCounts = {};
+            
+            fucos.data.forEach(row => {
+                const dept = row[11]; // מדור
+                if (dept) {
+                    deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+                }
+            });
+            
+            return {
+                labels: Object.keys(deptCounts),
+                data: Object.values(deptCounts)
+            };
+        }
+
+        function updateAllSections() {
+            updateInquiriesSection();
+            updateSecuritySection();
+            updatePoliceSection();
+            updateEmergencySection();
+            updateRescueSection();
+            updateCCTVSection();
+        }
+
+        function updateInquiriesSection() {
+            if (!dashboardData.fucos) return;
+            
+            const content = document.getElementById('inquiriesContent');
+            const data = dashboardData.fucos;
+            
+            let html = `<table class="data-table">
+                <thead><tr>`;
+            
+            data.headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+            
+            data.data.slice(0, 50).forEach(row => { // Show first 50 rows
+                html += '<tr>';
+                row.forEach(cell => {
+                    const status = getStatusBadge(cell);
+                    html += `<td>${status}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        }
+
+        function updateSecuritySection() {
+            if (!dashboardData.schona_sec) return;
+            
+            const data = dashboardData.schona_sec;
+            
+            // Create neighborhood chart
+            const neighborhoodData = {};
+            data.data.forEach(row => {
+                const neighborhood = row[3]; // שכונה
+                const count = parseInt(row[4] || 0); // כמות פניות
+                neighborhoodData[neighborhood] = (neighborhoodData[neighborhood] || 0) + count;
+            });
+            
+            createChart('securityChart', 'bar', {
+                labels: Object.keys(neighborhoodData),
+                datasets: [{
+                    label: 'פניות ביטחון',
+                    data: Object.values(neighborhoodData),
+                    backgroundColor: 'rgba(102, 126, 234, 0.8)'
+                }]
+            });
+
+            // Create table
+            const content = document.getElementById('securityContent');
+            let html = `<table class="data-table">
+                <thead><tr>`;
+            
+            data.headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+            
+            data.data.forEach(row => {
+                html += '<tr>';
+                row.forEach(cell => {
+                    html += `<td>${cell || '-'}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        }
+
+        function updatePoliceSection() {
+            if (!dashboardData.police) return;
+            
+            const data = dashboardData.police;
+            
+            // Create crime chart
+            const crimeData = {};
+            data.data.forEach(row => {
+                const crimeType = row[3]; // סוג עבירה
+                const count = parseInt(row[4] || 0); // כמות עבירות
+                crimeData[crimeType] = count;
+            });
+            
+            createChart('crimeChart', 'bar', {
+                labels: Object.keys(crimeData),
+                datasets: [{
+                    label: 'מספר עבירות',
+                    data: Object.values(crimeData),
+                    backgroundColor: [
+                        '#f5576c', '#f093fb', '#667eea', '#764ba2'
+                    ]
+                }]
+            });
+
+            // Create table
+            const content = document.getElementById('policeContent');
+            let html = `<table class="data-table">
+                <thead><tr>`;
+            
+            data.headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+            
+            data.data.forEach(row => {
+                html += '<tr>';
+                row.forEach(cell => {
+                    html += `<td>${cell || '-'}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        }
+
+        function updateEmergencySection() {
+            if (!dashboardData.citat_conenut) return;
+            
+            const data = dashboardData.citat_conenut;
+            
+            // Calculate aggregated statistics
+            const stats = calculateEmergencyStats(data);
+            updateEmergencyStats(stats);
+            
+            const content = document.getElementById('emergencyContent');
+            
+            let html = '<div class="emergency-cards">';
+            
+            data.data.forEach((row, index) => {
+                const activityName = row[0] || 'פעילות ללא שם';
+                const activityType = row[1] || '-';
+                const status = row[2] || '-';
+                const startDate = row[3] || '-';
+                const endDate = row[4] || '-';
+                const participants = row[5] || '-';
+                const totalParticipants = row[6] || '0';
+                const permissions = row[7] || '-';
+                const itemId = row[8] || '-';
+                
+                html += `
+                <div class="emergency-card">
+                    <div class="card-title">
+                        <span class="card-icon">🎯</span>
+                        ${activityName}
+                    </div>
+                    
+                    <div class="card-detail">
+                        <div class="card-label">סוג פעילות</div>
+                        <div class="card-value">${activityType}</div>
+                    </div>
+                    
+                    <div class="card-detail">
+                        <div class="card-label">סטטוס</div>
+                        <div class="card-value">
+                            <span class="status-badge-large status-completed">${status}</span>
+                        </div>
+                    </div>
+                    
+                    ${startDate !== endDate ? 
+                        `<div class="date-range">
+                            📅 ${startDate} - ${endDate}
+                        </div>` : 
+                        `<div class="date-range">
+                            📅 ${startDate}
+                        </div>`
+                    }
+                    
+                    <div class="card-detail">
+                        <div class="card-label">משתתפים <span class="participant-count">👥 ${totalParticipants}</span></div>
+                        <div class="card-participants">
+                            <div class="participants-list">${participants}</div>
+                        </div>
+                    </div>
+                    
+                    ${permissions !== '-' ? 
+                        `<div class="card-detail">
+                            <div class="card-label">הרשאות</div>
+                            <div class="card-value">${permissions}</div>
+                        </div>` : ''
+                    }
+                    
+                    <div class="card-detail" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #f0f0f0;">
+                        <div class="card-label">מזהה פריט</div>
+                        <div class="card-value" style="font-family: monospace; font-size: 0.9rem; color: #666;">#${itemId}</div>
+                    </div>
+                </div>`;
+            });
+            
+            html += '</div>';
+            content.innerHTML = html;
+        }
+
+        function calculateEmergencyStats(data) {
+            let totalActivities = data.data.length;
+            let completedActivities = 0;
+            let totalParticipants = 0;
+            let trainingCount = 0;
+            let dates = [];
+            
+            data.data.forEach(row => {
+                // Count completed activities
+                if (row[2] === 'בוצע') {
+                    completedActivities++;
+                }
+                
+                // Sum participants
+                const participants = parseInt(row[6] || 0);
+                totalParticipants += participants;
+                
+                // Count training activities
+                if (row[1] === 'אימון') {
+                    trainingCount++;
+                }
+                
+                // Collect dates
+                if (row[3]) {
+                    dates.push(row[3]);
+                }
+            });
+            
+            const avgParticipants = totalActivities > 0 ? Math.round(totalParticipants / totalActivities) : 0;
+            
+            // Get date range
+            const sortedDates = dates.sort();
+            const dateRange = sortedDates.length > 0 ? 
+                `${sortedDates[0]} - ${sortedDates[sortedDates.length - 1]}` : 
+                'לא זמין';
+            
+            return {
+                totalActivities,
+                completedActivities,
+                totalParticipants,
+                avgParticipants,
+                trainingCount,
+                dateRange
+            };
+        }
+
+        function updateEmergencyStats(stats) {
+            document.getElementById('totalActivities').textContent = stats.totalActivities.toLocaleString('he-IL');
+            document.getElementById('completedActivities').textContent = stats.completedActivities.toLocaleString('he-IL');
+            document.getElementById('totalParticipants').textContent = stats.totalParticipants.toLocaleString('he-IL');
+            document.getElementById('avgParticipants').textContent = stats.avgParticipants.toLocaleString('he-IL');
+            document.getElementById('trainingCount').textContent = stats.trainingCount.toLocaleString('he-IL');
+            document.getElementById('dateRange').textContent = stats.dateRange;
+        }
+
+        function updateRescueSection() {
+            if (!dashboardData.hilutz) return;
+            
+            const data = dashboardData.hilutz;
+            
+            // Create gender distribution chart
+            const genderData = { 'זכר': 0, 'נקבה': 0 };
+            data.data.forEach(row => {
+                const gender = row[2]; // מגדר
+                if (genderData[gender] !== undefined) {
+                    genderData[gender]++;
+                }
+            });
+            
+            createChart('rescueChart', 'pie', {
+                labels: Object.keys(genderData),
+                datasets: [{
+                    data: Object.values(genderData),
+                    backgroundColor: ['#667eea', '#764ba2']
+                }]
+            });
+
+            // Create table
+            const content = document.getElementById('rescueContent');
+            let html = `<table class="data-table">
+                <thead><tr>`;
+            
+            data.headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+            
+            data.data.slice(0, 20).forEach(row => { // Show first 20 rows
+                html += '<tr>';
+                row.forEach(cell => {
+                    html += `<td>${cell || '-'}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        }
+
+        function updateCCTVSection() {
+            if (!dashboardData.cctv) return;
+            
+            const data = dashboardData.cctv;
+            
+            // Create CCTV chart
+            const neighborhoods = [];
+            const cameras = [];
+            
+            data.data.forEach(row => {
+                neighborhoods.push(row[0]); // שכונה
+                cameras.push(parseInt(row[1] || 0)); // סה"כ מצלמות
+            });
+            
+            createChart('cctvChart', 'bar', {
+                labels: neighborhoods,
+                datasets: [{
+                    label: 'מספר מצלמות',
+                    data: cameras,
+                    backgroundColor: 'rgba(118, 75, 162, 0.8)'
+                }]
+            });
+
+            // Create table
+            const content = document.getElementById('cctvContent');
+            let html = `<table class="data-table">
+                <thead><tr>`;
+            
+            data.headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+            
+            data.data.forEach(row => {
+                html += '<tr>';
+                row.forEach(cell => {
+                    html += `<td>${cell || '-'}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        }
+
+        function createChart(canvasId, type, data) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+            
+            // Destroy existing chart
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+            
+            charts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                font: {
+                                    family: 'Segoe UI'
+                                }
+                            }
+                        }
+                    },
+                    scales: type !== 'pie' && type !== 'doughnut' ? {
+                        y: {
+                            beginAtZero: true
+                        }
+                    } : {}
+                }
+            });
+        }
+
+        function getStatusBadge(text) {
+            if (!text) return '-';
+            
+            const str = text.toString();
+            if (str.includes('פתוח') || str.includes('משימה חדשה')) {
+                return `<span class="status-badge status-open">${str}</span>`;
+            } else if (str.includes('סגור') || str.includes('טופל')) {
+                return `<span class="status-badge status-closed">${str}</span>`;
+            } else if (str.includes('פעיל')) {
+                return `<span class="status-badge status-active">${str}</span>`;
+            }
+            return str;
+        }
+
+        function showLoading(show) {
+            document.querySelector('.loading').style.display = show ? 'block' : 'none';
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load saved theme
+            loadSavedTheme();
+            
+            // Auto-load data if file is available
+            if (window.fs && window.fs.readFile) {
+                try {
+                    window.fs.readFile('codecallang1.xlsx').then(data => {
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        processWorkbook(workbook);
+                    }).catch(() => {
+                        console.log('No pre-loaded file available');
+                    });
+                } catch (e) {
+                    console.log('File system not available');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
